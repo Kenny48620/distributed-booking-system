@@ -71,4 +71,20 @@ distributed-booking-system/
 
 This project is currently in Phase 1.
 
-The immediate goal is to build the Booking Service and Inventory Service with PostgreSQL and synchronous service-to-service communication before introducing Redis and Kafka.
+Implemented so far:
+- Booking Service
+- Inventory Service
+- PostgreSQL integration
+- Docker Compose local environment
+- synchronous service-to-service communication
+- inventory reservation before booking creation
+
+Current booking flow:
+- Inventory is reserved synchronously through Inventory Service
+- A booking is created only after inventory reservation succeeds
+- Confirmed bookings are persisted in PostgreSQL
+
+Next steps:
+- improve validation and error handling
+- add Redis caching
+- introduce Kafka for event-driven workflows
