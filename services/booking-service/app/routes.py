@@ -22,7 +22,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         user_id=payload.user_id,
         item_id=payload.item_id,
         quantity=payload.quantity,
-        status="PENDING",
+        status="CONFIRMED",
     )
     db.add(booking)
     db.commit()
