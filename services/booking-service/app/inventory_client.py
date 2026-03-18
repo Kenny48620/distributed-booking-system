@@ -1,6 +1,7 @@
 import requests
 
-INVENTORY_SERVICE_URL = "http://127.0.0.1:8001"
+# INVENTORY_SERVICE_URL = "http://127.0.0.1:8001"
+INVENTORY_SERVICE_URL = "http://inventory-service:8001"
 
 
 # def check_inventory(item_id: str, quantity: int) -> bool:

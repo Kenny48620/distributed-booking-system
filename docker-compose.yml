@@ -23,5 +23,22 @@ services:
     ports:
       - "9092:9092"
 
+  inventory-service:
+    build: ./services/inventory-service
+    container_name: inventory-service
+    depends_on:
+      - postgres
+    ports:
+      - "8001:8001"
+
+  booking-service:
+    build: ./services/booking-service
+    container_name: booking-service
+    depends_on:
+      - postgres
+      - inventory-service
+    ports:
+      - "8000:8000"
+      
 volumes:
   postgres_data:
