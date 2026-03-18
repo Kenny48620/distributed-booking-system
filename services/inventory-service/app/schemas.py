@@ -13,3 +13,7 @@ class InventoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InventoryReserve(BaseModel):
+    item_id: str
+    quantity: int

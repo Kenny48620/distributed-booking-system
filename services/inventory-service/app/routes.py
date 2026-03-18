@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import Inventory
-from .schemas import InventorySeed, InventoryResponse
+from .schemas import InventorySeed, InventoryResponse, InventoryReserve
 
 router = APIRouter()
 
@@ -38,4 +38,19 @@ def get_inventory(item_id: str, db: Session = Depends(get_db)):
     inventory = db.query(Inventory).filter(Inventory.item_id == item_id).first()
     if not inventory:
         raise HTTPException(status_code=404, detail="Inventory not found")
+    return inventory
+
+# used before booking
+@router.post("/inventory/reserve", response_model=InventoryResponse)
+def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
+    inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
+    if not inventory:
+        raise HTTPException(status_code=404, detail="Inventory not found")
+
+    if inventory.available_quantity < payload.quantity:
+        raise HTTPException(status_code=400, detail="Insufficient inventory")
+
+    inventory.available_quantity -= payload.quantity
+    db.commit()
+    db.refresh(inventory)
     return inventory
