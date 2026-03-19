@@ -7,6 +7,8 @@ from .schemas import BookingCreate, BookingResponse
 # check quantity
 from .inventory_client import reserve_inventory
 
+from .kafka_producer import publish_booking_created_event
+
 router = APIRouter()
 
 @router.post("/bookings", response_model=BookingResponse)
@@ -17,17 +19,24 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
 
     # print("Booking created!")
 
-    # create booking object
+    # create new booking record in booking-service DB
     booking = Booking(
         user_id=payload.user_id,
         item_id=payload.item_id,
         quantity=payload.quantity,
+        # set to CONFIRMED because inventory reservation already succeeded
         status="CONFIRMED",
     )
+    # add it to current DB session
     db.add(booking)
     db.commit()
+    # refresh it from DB so it contains generated fields like id
     db.refresh(booking)
+    
 
+    # publish a Kafka event after booking is successfully created
+    # so async consumers notification-worker can listen to this event and process follow-up actions
+    publish_booking_created_event(booking)
     return booking
 
 
