@@ -5,7 +5,9 @@ import redis
 # redis connection string
 # booking-redis is the Redis container/service name in docker-compose
 # /0 means we are using Redis database 0
-REDIS_URL = "redis://booking-redis:6379/0"
+# REDIS_URL = "redis://booking-redis:6379/0"
+# use service's name instead of contianer's name
+REDIS_URL = "redis://redis:6379/0"
 
 # create a Redis client
 # decode_responses=True means Redis returns strings instead of bytes
