@@ -1,4 +1,6 @@
 import json
+import uuid
+
 from confluent_kafka import Producer
 
 # responsible for publish event
@@ -22,6 +24,9 @@ def delivery_report(err, msg):
 def publish_booking_created_event(booking):
     # create a booking event payload that will be sent to Kafka
     event = {
+        # generate a unique event id for this event
+        # this is important for idempotency on the consumer side
+        "event_id": str(uuid.uuid4()), 
         "event_type": "booking_created",
         "booking_id": booking.id,
         "user_id": booking.user_id,
