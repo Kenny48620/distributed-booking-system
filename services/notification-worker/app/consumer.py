@@ -2,6 +2,14 @@ import json
 from confluent_kafka import Consumer, KafkaError
 from redis_client import is_event_processed, mark_event_processed
 
+from redis_client import is_event_processed, mark_event_processed
+from database import SessionLocal
+from models import Notification
+from init_db import init_db
+
+# create database tables on startup
+init_db()
+
 # cereate a Kafka comsumer
 # it connects to the Kafka broker inside the docker-compose network
 consumer = Consumer({
@@ -67,8 +75,48 @@ try:
         # redis-based idempotency check (I use event_id to check it if it works as expected)
         # if we've process this event before, stop sending the notification twice
         if is_event_processed(event_id):
-            print(f"Duplicate event detected in Redis, skipping: {event_id}")
+            print(f"Duplicate event detected in Redis, skipping: {event_id}", flush=True)
             continue
+        
+        # create a new database session from SessionLocal
+        # this db object is used to talk to PostgreSQL in this block
+        db = SessionLocal()
+        try:
+            # create notification message
+            message = (
+                f"Booking {event['booking_id']} confirmed "
+                f"for user {event['user_id']}"
+            )
+
+            # persist notification into PostgreSQL
+            # create a class instance for putting into DB
+            notification = Notification(
+                event_id=event_id,
+                booking_id=event["booking_id"],
+                user_id=event["user_id"],
+                message=message,
+                status="SENT",
+            )
+            db.add(notification)
+            db.commit()
+            db.refresh(notification)
+
+            print(f"Notification saved to DB: id={notification.id}", flush=True)
+            print(f"Simulated notification: {message}", flush=True)
+
+            # only mark processed after DB write succeeds
+            mark_event_processed(event_id)
+            print(f"Marked event as processed in Redis: {event_id}", flush=True)
+
+        except Exception as e:
+            db.rollback()
+            print(f"Failed to process notification event: {e}", flush=True)
+
+        finally:
+            db.close()
+
+        '''
+        Before doing Notification: 
 
         # Debug: print the full event for debugging / visibility
         print(f"Received booking event: {event}", flush=True)
@@ -84,6 +132,7 @@ try:
         # only mark as processed after side effect succeeds
         mark_event_processed(event_id)
         print(f"Marked event as processed in Redis: {event_id}", flush=True)
+        '''
 
 # handle manual stop (ctrl+c) gracefully
 except KeyboardInterrupt:
