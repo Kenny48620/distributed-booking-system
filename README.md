@@ -69,22 +69,40 @@ distributed-booking-system/
 
 ## Current Status
 
-This project is currently in Phase 1.
+This project is currently in Phase 2.
 
 Implemented so far:
 - Booking Service
 - Inventory Service
 - PostgreSQL integration
-- Docker Compose local environment
+- Docker Compose local multi-container environment
 - synchronous service-to-service communication
 - inventory reservation before booking creation
+- booking validation for positive quantity
+- confirmed booking persistence in PostgreSQL
+- Redis cache-aside reads for inventory data
+- Kafka-based booking event publishing
+- Notification Worker for asynchronous event consumption
+- notification persistence in PostgreSQL
+- Redis-backed idempotent event processing
+- immediate retry handling for transient notification failures
+- retry-topic republishing for failed notification events
+- dead-letter queue support for repeatedly failing events
 
 Current booking flow:
-- Inventory is reserved synchronously through Inventory Service
-- A booking is created only after inventory reservation succeeds
-- Confirmed bookings are persisted in PostgreSQL
+- A client sends a POST /bookings request to Booking Service.
+- Booking Service validates the request payload.
+- Booking Service synchronously calls Inventory Service to reserve inventory.
+- If inventory reservation succeeds, Booking Service stores a confirmed booking in PostgreSQL.
+- Booking Service publishes a booking_created event to Kafka.
+- Notification Worker consumes the event asynchronously.
+- Notification Worker persists a notification record in PostgreSQL.
+- Notification Worker marks the event as processed in Redis after successful side effects.
+
 
 Next steps:
-- improve validation and error handling
-- add Redis caching
-- introduce Kafka for event-driven workflows
+- add tests for key workflows and failure scenarios
+- improve observability and structured service logging
+- document architecture and failure scenarios more clearly
+- introduce Payment Service
+- refine status transitions and compensation handling
