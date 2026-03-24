@@ -7,7 +7,9 @@ from .schemas import BookingCreate, BookingResponse
 # check quantity
 from .inventory_client import reserve_inventory
 
-from .kafka_producer import publish_booking_created_event
+# from .kafka_producer import publish_booking_created_event, publish_payment_request_event
+from .kafka_producer import publish_payment_requested_event
+
 
 router = APIRouter()
 
@@ -25,7 +27,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         item_id=payload.item_id,
         quantity=payload.quantity,
         # set to CONFIRMED because inventory reservation already succeeded
-        status="CONFIRMED",
+        status="PENDING",
     )
     # add it to current DB session
     db.add(booking)
@@ -36,7 +38,8 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
 
     # publish a Kafka event after booking is successfully created
     # so async consumers notification-worker can listen to this event and process follow-up actions
-    publish_booking_created_event(booking)
+    # publish_booking_created_event(booking)
+    publish_payment_requested_event(booking)
     return booking
 
 
