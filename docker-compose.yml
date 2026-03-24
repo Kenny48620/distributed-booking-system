@@ -64,6 +64,12 @@ services:
     depends_on:
       - kafka
     restart: unless-stopped
+  payment-service:
+      build: ./services/payment-service
+      container_name: payment-service
+      depends_on:
+        - kafka
+      restart: unless-stopped
       
 volumes:
   postgres_data:
