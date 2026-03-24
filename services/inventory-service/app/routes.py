@@ -3,12 +3,16 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import Inventory
-from .schemas import InventorySeed, InventoryResponse, InventoryReserve
+from .schemas import (
+    InventorySeed, 
+    InventoryResponse, 
+    InventoryReserve, 
+    InventoryRelease
+)
 
 from .redis_client import (
     get_cached_inventory,
     set_cached_inventory,
-    delete_cached_inventory, # not use yet
 )
 
 router = APIRouter()
@@ -114,4 +118,28 @@ def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
         },
     )
 
+    return inventory
+
+@router.post("/inventory/release", response_model=InventoryResponse)
+def release_inventory(payload: InventoryRelease, db: Session = Depends(get_db)):
+    # find the inventory record for the given item
+    inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
+    if not inventory:
+        raise HTTPException(status_code=404, detail="Inventory not found")
+     
+    # restore inventory after a failed booking or payment flow
+    inventory.available_quantity += payload.quantity
+    db.commit()
+    db.refresh(inventory)
+
+    # update Redis cache
+    set_cached_inventory(
+        inventory.item_id,
+        {
+            "id": inventory.id,
+            "item_id": inventory.item_id,
+            "available_quantity": inventory.available_quantity,
+        },
+    )
+    # return the updated inventory record
     return inventory

@@ -17,3 +17,7 @@ class InventoryResponse(BaseModel):
 class InventoryReserve(BaseModel):
     item_id: str
     quantity: int
+
+class InventoryRelease(BaseModel):
+    item_id: str
+    quantity: int
