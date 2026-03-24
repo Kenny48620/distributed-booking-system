@@ -20,14 +20,14 @@ def delivery_report(err, msg):
             f"[partition {msg.partition()}] at offset {msg.offset()}"
         )
 
-# publish a booking_created event to Kafka after a booking is created
-def publish_booking_created_event(booking):
-    # create a booking event payload that will be sent to Kafka
+
+def publish_payment_requested_event(booking):
+
     event = {
         # generate a unique event id for this event
         # this is important for idempotency on the consumer side
         "event_id": str(uuid.uuid4()), 
-        "event_type": "booking_created",
+        "event_type": "payment_requested",
         "booking_id": booking.id,
         "user_id": booking.user_id,
         "item_id": booking.item_id,
@@ -35,9 +35,9 @@ def publish_booking_created_event(booking):
         "status": booking.status,
     }
 
-    # send the event to the booking_created topic
+    # send the event to the payment_requested topic
     producer.produce(
-        "booking_created",
+        "payment_requested",
         key=str(booking.id), # determine which partition it's gonna go to
         value=json.dumps(event), # convert python dic to jason string
         callback=delivery_report,
@@ -46,3 +46,31 @@ def publish_booking_created_event(booking):
     # force buffered messages to be sent immediately
     # use it for this small project
     producer.flush()
+
+
+# # publish a booking_created event to Kafka after a booking is created
+# def publish_booking_created_event(booking):
+#     # create a booking event payload that will be sent to Kafka
+#     event = {
+#         # generate a unique event id for this event
+#         # this is important for idempotency on the consumer side
+#         "event_id": str(uuid.uuid4()), 
+#         "event_type": "booking_created",
+#         "booking_id": booking.id,
+#         "user_id": booking.user_id,
+#         "item_id": booking.item_id,
+#         "quantity": booking.quantity,
+#         "status": booking.status,
+#     }
+
+#     # send the event to the booking_created topic
+#     producer.produce(
+#         "booking_created",
+#         key=str(booking.id), # determine which partition it's gonna go to
+#         value=json.dumps(event), # convert python dic to jason string
+#         callback=delivery_report,
+#     )
+
+#     # force buffered messages to be sent immediately
+#     # use it for this small project
+#     producer.flush()
