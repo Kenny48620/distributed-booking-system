@@ -21,3 +21,10 @@ def reserve_inventory(item_id: str, quantity: int) -> bool:
     )
 
     return response.status_code == 200
+
+def release_inventory(item_id: str, quantity: int) -> bool:
+    response = requests.post(
+        f"{INVENTORY_SERVICE_URL}/inventory/release",
+        json={"item_id": item_id, "quantity": quantity},
+    )
+    return response.status_code == 200
