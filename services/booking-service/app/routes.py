@@ -26,7 +26,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         user_id=payload.user_id,
         item_id=payload.item_id,
         quantity=payload.quantity,
-        # set to CONFIRMED because inventory reservation already succeeded
+        # set to PENDING because inventory reservation already succeeded
         status="PENDING",
     )
     # add it to current DB session
