@@ -46,7 +46,7 @@ def run_payment_result_consumer():
             booking_id = event["booking_id"]
 
             # open a new database session for handling this event
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
                 # find the record
                 booking = db.query(Booking).filter(Booking.id == booking_id).first()
