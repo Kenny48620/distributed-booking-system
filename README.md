@@ -106,3 +106,15 @@ Next steps:
 - document architecture and failure scenarios more clearly
 - introduce Payment Service
 - refine status transitions and compensation handling
+
+
+
+### Concurrency protection test
+
+To validate oversell prevention, I sent 10 concurrent booking requests for the same item while inventory quantity was set to 3.
+
+Result:
+- three request succeeded
+- seven request failed with `Insufficient inventory`
+
+This verifies that the inventory reservation flow prevents overselling under concurrent booking attempts.
