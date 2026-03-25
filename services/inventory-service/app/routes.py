@@ -95,7 +95,16 @@ def get_inventory(item_id: str, db: Session = Depends(get_db)):
 @router.post("/inventory/reserve", response_model=InventoryResponse)
 def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
     # find the inventory record for the requested item
-    inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
+    # inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
+    
+    # use row lock to prevent race condition
+    inventory = (
+        db.query(Inventory)
+        .filter(Inventory.item_id == payload.item_id)
+        .with_for_update() # enable row lock
+        .first()
+    )
+
     if not inventory:
         raise HTTPException(status_code=404, detail="Inventory not found")
     
@@ -123,7 +132,16 @@ def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
 @router.post("/inventory/release", response_model=InventoryResponse)
 def release_inventory(payload: InventoryRelease, db: Session = Depends(get_db)):
     # find the inventory record for the given item
-    inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
+    # inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
+
+    # use row lock to prevent race condition
+    inventory = (
+        db.query(Inventory)
+        .filter(Inventory.item_id == payload.item_id)
+        .with_for_update() # enable row lock
+        .first()
+    )
+
     if not inventory:
         raise HTTPException(status_code=404, detail="Inventory not found")
      
