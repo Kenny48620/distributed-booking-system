@@ -4,8 +4,7 @@ from .database import Base, engine
 from . import models
 from .routes import router
 from .payment_consumer import start_payment_result_consumer
-
-Base.metadata.create_all(bind=engine)
+from .outbox_publisher import start_outbox_publisher
 
 
 # has been deprecated
@@ -15,11 +14,13 @@ Base.metadata.create_all(bind=engine)
 # so use FastAPI recommend way to create a thread
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
+    # Initialize database tables during application startup.
+    Base.metadata.create_all(bind=engine)
     # start up
     print("Booking Service is starting up...", flush=True)
     # start the background Kafka consumer at application startup
     start_payment_result_consumer()
+    start_outbox_publisher()
 
     # hand control back to FastAPI so it can start serving requests
     yield
