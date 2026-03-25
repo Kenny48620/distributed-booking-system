@@ -70,8 +70,6 @@ def clear_dlq_flag(event_id: str):
     key = get_dlq_key(event_id)
     redis_client.delete(key)
 
-
-
 # haven't use it yet, for now just make everything simple
 # the purpose is to:
 # prevent an event publish retry topic too many times in a short period
