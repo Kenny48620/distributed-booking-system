@@ -2,6 +2,7 @@ import json
 import time
 
 from confluent_kafka import Consumer, KafkaError
+from sqlalchemy.orm import Session
 from redis_client import is_event_processed, mark_event_processed
 
 # used to count failures and stop retrying after MAX_RETRIES
@@ -125,7 +126,7 @@ try:
         for attempt in range(1, MAX_IMMEDIATE_RETRIES + 1):
             # open a new database session from SessionLocal
             # this db object is used to talk to PostgreSQL for this event
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
                 print(f"Immediate attempt {attempt} for event {event_id}")
 
