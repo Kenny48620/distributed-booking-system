@@ -41,6 +41,24 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
+  kafka-init:
+    image: apache/kafka:4.2.0
+    container_name: booking-kafka-init
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      sleep 10 &&
+      kafka-topics.sh --create --if-not-exists --topic payment_requested --bootstrap-server booking-kafka:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics.sh --create --if-not-exists --topic payment_succeeded --bootstrap-server booking-kafka:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics.sh --create --if-not-exists --topic payment_failed --bootstrap-server booking-kafka:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics.sh --create --if-not-exists --topic booking_created --bootstrap-server booking-kafka:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics.sh --create --if-not-exists --topic booking_created_retry --bootstrap-server booking-kafka:9092 --partitions 1 --replication-factor 1 &&
+      kafka-topics.sh --create --if-not-exists --topic booking_created_dlq --bootstrap-server booking-kafka:9092 --partitions 1 --replication-factor 1 &&
+      echo 'Kafka topics created.'
+      "
+
   inventory-service:
     build: ./services/inventory-service
     container_name: inventory-service
