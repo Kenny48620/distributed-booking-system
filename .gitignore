@@ -28,6 +28,7 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 
 # Build / packaging
 build/
@@ -36,9 +37,11 @@ dist/
 
 # Docker
 docker-data/
+docker-compose.override.yml
 
 # Database / local files
 *.sqlite3
+*.db
 
 # Jupyter
 .ipynb_checkpoints/
@@ -46,3 +49,14 @@ docker-data/
 # Temporary files
 tmp/
 temp/
+
+# Python tooling
+.mypy_cache/
+.ruff_cache/
+
+# Editor swap files
+*.swp
+*.swo
+
+# Python version managers
+.python-version
