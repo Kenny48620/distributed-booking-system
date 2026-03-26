@@ -182,3 +182,7 @@ After starting the services locally, you can explore the API documentation throu
 - Strengthen end-to-end verification for retry and DLQ behavior
 - Improve outbox publisher retry and monitoring
 - Add an API Gateway for unified external access
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
