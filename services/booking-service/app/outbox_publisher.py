@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import OutboxEvent
 
+from .logger import log_info, log_error
+
+
 # Kafka producer used by the outbox publisher to forward events
 # from the local outbox table to the message broker
 producer = Producer({
@@ -18,20 +21,37 @@ producer = Producer({
 # Kafka callback for debuging
 def delivery_report(err, msg):
     if err is not None:
-        print(f"Outbox delivery failed: {err}", flush=True)
-    else:
-        print(
-            f"Outbox event delivered to {msg.topic()} "
-            f"[partition {msg.partition()}] at offset {msg.offset()}",
-            flush=True,
+        # print(f"Outbox delivery failed: {err}", flush=True)
+        log_error(
+            service="booking-service",
+            component="outbox-publisher",
+            event="kafka_delivery_failed",
+            error=str(err),
         )
-
+    else:
+        # print(
+        #     f"Outbox event delivered to {msg.topic()} "
+        #     f"[partition {msg.partition()}] at offset {msg.offset()}",
+        #     flush=True,
+        # )
+        log_info(
+            service="booking-service",
+            component="outbox-publisher",
+            event="kafka_delivery_succeeded",
+            kafka_topic=msg.topic(),
+            kafka_partition=msg.partition(),
+            kafka_offset=msg.offset(),
+        )
 
 # background polling loop that continuously scans the outbox table
 # for unsent events and publishes them to Kafka
 def run_outbox_publisher():
-    print("Outbox publisher started.", flush=True)
-
+    # print("Outbox publisher started.", flush=True)
+    log_info(
+        service="booking-service",
+        component="outbox-publisher",
+        event="publisher_started",
+    )
     while True:
         # opean a db session for each polling cycle
         db: Session = SessionLocal()
@@ -57,6 +77,17 @@ def run_outbox_publisher():
                 try:
                     # covert the stored JSON string back into a Python object before sending it to Kafka
                     payload = json.loads(outbox_event.payload)
+                    log_info(
+                        service="booking-service",
+                        component="outbox-publisher",
+                        event="outbox_event_publish_attempt",
+                        outbox_id=outbox_event.id,
+                        event_id=outbox_event.event_id,
+                        event_type=outbox_event.event_type,
+                        aggregate_type=outbox_event.aggregate_type,
+                        aggregate_id=outbox_event.aggregate_id,
+                    )
+
 
                     # publish the outbox event to Kafka
                     producer.produce(
@@ -78,18 +109,38 @@ def run_outbox_publisher():
                     outbox_event.sent_at = datetime.now(timezone.utc)
                     db.commit()
 
-                    print(
-                        f"Outbox event {outbox_event.id} marked as SENT",
-                        flush=True,
+                    # print(
+                    #     f"Outbox event {outbox_event.id} marked as SENT",
+                    #     flush=True,
+                    # )
+                    log_info(
+                        service="booking-service",
+                        component="outbox-publisher",
+                        event="outbox_event_marked_sent",
+                        outbox_id=outbox_event.id,
+                        event_id=outbox_event.event_id,
+                        event_type=outbox_event.event_type,
+                        aggregate_id=outbox_event.aggregate_id,
+                        outbox_status="SENT",
                     )
-
                 except Exception as e:
                     # roll back the DB transaction so the event remains PENDING
                     # and can be retried in a later polling cycle
                     db.rollback()
-                    print(
-                        f"Failed to publish outbox event {outbox_event.id}: {e}",
-                        flush=True,
+                    # print(
+                    #     f"Failed to publish outbox event {outbox_event.id}: {e}",
+                    #     flush=True,
+                    # )
+                    log_error(
+                        service="booking-service",
+                        component="outbox-publisher",
+                        event="outbox_event_publish_failed",
+                        outbox_id=outbox_event.id,
+                        event_id=outbox_event.event_id,
+                        event_type=outbox_event.event_type,
+                        aggregate_id=outbox_event.aggregate_id,
+                        error=str(e),
+                        error_type=type(e).__name__,
                     )
 
         finally:

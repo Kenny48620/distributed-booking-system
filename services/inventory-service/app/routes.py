@@ -15,12 +15,21 @@ from .redis_client import (
     set_cached_inventory,
 )
 
+from .logger import log_info, log_warning
+
 router = APIRouter()
 
 
 # update item quantity of inventory
 @router.post("/inventory/seed", response_model=InventoryResponse)
 def seed_inventory(payload: InventorySeed, db: Session = Depends(get_db)):
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_seed_requested",
+        item_id=payload.item_id,
+        quantity=payload.available_quantity,
+    )
     # find object
     existing = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
     # if we have it，update its available quantity
@@ -40,6 +49,13 @@ def seed_inventory(payload: InventorySeed, db: Session = Depends(get_db)):
             },
         )
 
+        log_info(
+            service="inventory-service",
+            component="inventory-api",
+            event="inventory_updated",
+            item_id=existing.item_id,
+            available_quantity=existing.available_quantity,
+        )
         return existing
 
     # if we dont' have it, then create the object
@@ -62,6 +78,14 @@ def seed_inventory(payload: InventorySeed, db: Session = Depends(get_db)):
         },
     )
 
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_seeded",
+        item_id=inventory.item_id,
+        available_quantity=inventory.available_quantity,
+    )
+
     return inventory
 
 # return the status of item by item id
@@ -70,14 +94,32 @@ def get_inventory(item_id: str, db: Session = Depends(get_db)):
     # first try to read inventory from Redis cache
     cached = get_cached_inventory(item_id)
     if cached:
-        print(f"cache hit for {item_id}")
+        # print(f"cache hit for {item_id}")
+        log_info(
+            service="inventory-service",
+            component="inventory-api",
+            event="inventory_cache_hit",
+            item_id=item_id,
+        )
         # if cache hit, return cached data directly without querying DB
         return cached
     
-    print(f"cache miss for {item_id}")
+    # print(f"cache miss for {item_id}")
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_cache_miss",
+        item_id=item_id,
+    )
     # if cache miss, query the database
     inventory = db.query(Inventory).filter(Inventory.item_id == item_id).first()
     if not inventory:
+        log_warning(
+            service="inventory-service",
+            component="inventory-api",
+            event="inventory_not_found",
+            item_id=item_id,
+        )
         raise HTTPException(status_code=404, detail="Inventory not found")
     
     # convert DB object into a plain dict for caching / returning
@@ -89,11 +131,25 @@ def get_inventory(item_id: str, db: Session = Depends(get_db)):
     # save DB result into Redis so future reads are faster
     set_cached_inventory(item_id, inventory_data)
 
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_loaded_from_db",
+        item_id=inventory.item_id,
+        available_quantity=inventory.available_quantity,
+    )
     return inventory
 
 # used before booking
 @router.post("/inventory/reserve", response_model=InventoryResponse)
 def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_reserve_requested",
+        item_id=payload.item_id,
+        quantity=payload.quantity,
+    )
     # find the inventory record for the requested item
     # inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
     
@@ -106,10 +162,24 @@ def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
     )
 
     if not inventory:
+        log_warning(
+            service="inventory-service",
+            component="inventory-api",
+            event="inventory_not_found",
+            item_id=payload.item_id,
+        )
         raise HTTPException(status_code=404, detail="Inventory not found")
     
     # check if there is enough stock before reserving
     if inventory.available_quantity < payload.quantity:
+        log_warning(
+            service="inventory-service",
+            component="inventory-api",
+            event="inventory_reservation_failed",
+            item_id=payload.item_id,
+            requested_quantity=payload.quantity,
+            available_quantity=inventory.available_quantity,
+        )
         raise HTTPException(status_code=400, detail="Insufficient inventory")
 
     inventory.available_quantity -= payload.quantity
@@ -126,11 +196,27 @@ def reserve_inventory(payload: InventoryReserve, db: Session = Depends(get_db)):
             "available_quantity": inventory.available_quantity,
         },
     )
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_reserved",
+        item_id=inventory.item_id,
+        reserved_quantity=payload.quantity,
+        remaining_quantity=inventory.available_quantity,
+    )
 
     return inventory
 
 @router.post("/inventory/release", response_model=InventoryResponse)
 def release_inventory(payload: InventoryRelease, db: Session = Depends(get_db)):
+
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_release_requested",
+        item_id=payload.item_id,
+        quantity=payload.quantity,
+    )
     # find the inventory record for the given item
     # inventory = db.query(Inventory).filter(Inventory.item_id == payload.item_id).first()
 
@@ -143,6 +229,12 @@ def release_inventory(payload: InventoryRelease, db: Session = Depends(get_db)):
     )
 
     if not inventory:
+        log_warning(
+            service="inventory-service",
+            component="inventory-api",
+            event="inventory_not_found",
+            item_id=payload.item_id,
+        )
         raise HTTPException(status_code=404, detail="Inventory not found")
      
     # restore inventory after a failed booking or payment flow
@@ -158,6 +250,15 @@ def release_inventory(payload: InventoryRelease, db: Session = Depends(get_db)):
             "item_id": inventory.item_id,
             "available_quantity": inventory.available_quantity,
         },
+    )
+
+    log_info(
+        service="inventory-service",
+        component="inventory-api",
+        event="inventory_released",
+        item_id=inventory.item_id,
+        released_quantity=payload.quantity,
+        available_quantity=inventory.available_quantity,
     )
     # return the updated inventory record
     return inventory

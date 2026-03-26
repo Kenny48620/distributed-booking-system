@@ -5,7 +5,7 @@ from . import models
 from .routes import router
 from .payment_consumer import start_payment_result_consumer
 from .outbox_publisher import start_outbox_publisher
-
+from .logger import log_info
 
 # has been deprecated
 # @app.on_event("startup")
@@ -17,7 +17,12 @@ async def lifespan(app: FastAPI):
     # Initialize database tables during application startup.
     Base.metadata.create_all(bind=engine)
     # start up
-    print("Booking Service is starting up...", flush=True)
+    # print("Booking Service is starting up...", flush=True)
+    log_info(
+        service="booking-service",
+        component="app-lifespan",
+        event="startup",
+    )
     # start the background Kafka consumer at application startup
     start_payment_result_consumer()
     start_outbox_publisher()
@@ -25,7 +30,12 @@ async def lifespan(app: FastAPI):
     # hand control back to FastAPI so it can start serving requests
     yield
     # shutdown
-    print("Booking Service is shutting down...", flush=True)
+    # print("Booking Service is shutting down...", flush=True)
+    log_info(
+        service="booking-service",
+        component="app-lifespan",
+        event="shutdown",
+    )
     # put shutdown cleanup here later if needed
     
 

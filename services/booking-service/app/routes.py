@@ -12,15 +12,42 @@ from .inventory_client import reserve_inventory
 # from .kafka_producer import publish_booking_created_event, publish_payment_request_event
 # from .kafka_producer import publish_payment_requested_event
 
+from .logger import log_info, log_error, log_warning
+
 
 router = APIRouter()
 
 @router.post("/bookings", response_model=BookingResponse)
 def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
+    log_info (
+        service="booking-service",
+        component="booking-api",
+        event="booking_request_received",
+        user_id=payload.user_id,
+        item_id=payload.item_id,
+        quantity=payload.quantity,
+    )
+
     # if doesn't have enough quantity, we need to check inventory before doing booking action
     if not reserve_inventory(payload.item_id, payload.quantity):
+        log_warning(
+            service="booking-service",
+            component="booking-api",
+            event="inventory_reserve_failed",
+            user_id=payload.user_id,
+            item_id=payload.item_id,
+            quantity=payload.quantity,
+        )
         raise HTTPException(status_code=400, detail="Booking failed: Insufficient inventory")
 
+    log_info(
+        service="booking-service",
+        component="booking-api",
+        event="inventory_reservation_succeeded",
+        user_id=payload.user_id,
+        item_id=payload.item_id,
+        quantity=payload.quantity,
+    )
     try:
 
         # create new booking record in booking-service DB
@@ -65,10 +92,33 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(booking)
 
+        log_info(
+            service="booking-service",
+            component="booking-api",
+            event="booking_created_with_outbox",
+            booking_id=booking.id,
+            user_id=booking.user_id,
+            item_id=booking.item_id,
+            quantity=booking.quantity,
+            booking_status=booking.status,
+            outbox_event_id=event_id,
+            outbox_status="PENDING",
+        )
+
+
         return booking
 
-    except Exception:
+    except Exception as e:
         db.rollback()
+        log_error(
+            service="booking-service",
+            component="booking-api",
+            event="booking_creation_failed",
+            user_id=payload.user_id,
+            item_id=payload.item_id,
+            quantity=payload.quantity,
+            error=str(e),
+        )
         raise
 
     #     db.commit()
